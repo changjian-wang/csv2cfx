@@ -2,6 +2,7 @@
 using CSV2CFX.Interfaces;
 using CSV2CFX.Models;
 using CSV2CFX.Services;
+using CSV2CFX.Views;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -90,9 +91,24 @@ namespace CSV2CFX
 
             _host.Start();
 
-            // 显示主窗口
-            var mainWindow = _host.Services.GetRequiredService<MainWindow>();
-            mainWindow.Show();
+            // 显示登录窗口
+            var loginWindow = new LoginWindow();
+            bool? loginResult = loginWindow.ShowDialog();
+
+            if (loginResult == true && loginWindow.IsLoggedIn)
+            {
+                // 登录成功，显示主窗口
+                _logger.LogInformation($"User {loginWindow.LoggedInUser} logged in with role {loginWindow.LoggedInRole}");
+                var mainWindow = _host.Services.GetRequiredService<MainWindow>();
+                mainWindow.Show();
+            }
+            else
+            {
+                // 登录失败或取消，退出应用程序
+                _logger.LogInformation("User cancelled login or login failed. Shutting down application.");
+                Shutdown();
+                return;
+            }
 
             base.OnStartup(e);
         }
