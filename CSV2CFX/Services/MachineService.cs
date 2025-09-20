@@ -12,37 +12,89 @@ using System.Text.Json;
 
 namespace CSV2CFX.Services
 {
-    public class MachineService : IMachineService
+    public class MachineService : IMachineService, IDisposable
     {
         private readonly ILogger _logger;
-        private readonly IOptions<MachineStatusSetting> _machineStatusOptions;
-        private readonly IOptions<MachineMetadataSetting> _machineMetadataOptions;
-        private readonly IOptions<CsvFilePathSetting> _csvFolderPathOptions;
-        private readonly IOptions<RabbitMQPublisherSettings> _rabbitMQPublisherOptions;
+        private readonly IOptionsMonitor<MachineInfoSetting> _machineInfoOptions;
+        private readonly IOptionsMonitor<MachineMetadataSetting> _machineMetadataOptions;
+        private readonly IOptionsMonitor<CsvFilePathSetting> _csvFilePathOptions;
+        private readonly IOptionsMonitor<RabbitMQPublisherSettings> _rabbitMQPublisherOptions;
         private readonly IRabbitMQService _rabbitMQService;
+        private readonly List<IDisposable> _optionsChangeTokens = new();
+
         private const string QUEUE_SUFFIX = "queue";
         private const string EXCHANGE_SUFFIX = "exchange";
         private const string ROUTINGKEY_SUFFIX = "routing-key";
-        private JsonSerializerOptions options = new JsonSerializerOptions
+
+        private readonly JsonSerializerOptions _jsonSerializerOptions = new JsonSerializerOptions
         {
-            WriteIndented = false, 
+            WriteIndented = false,
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
 
         public MachineService(
             ILogger<MachineService> logger,
-            IOptions<MachineStatusSetting> machineStatusOptions,
-            IOptions<MachineMetadataSetting> machineMetadataOptions,
-            IOptions<CsvFilePathSetting> csvFolderPathOptions,
-            IOptions<RabbitMQPublisherSettings> rabbitMQPublisherOptions,
+            IOptionsMonitor<MachineInfoSetting> machineInfoOptions,
+            IOptionsMonitor<MachineMetadataSetting> machineMetadataOptions,
+            IOptionsMonitor<CsvFilePathSetting> csvFilePathOptions,
+            IOptionsMonitor<RabbitMQPublisherSettings> rabbitMQPublisherOptions,
             IRabbitMQService rabbitMQService)
         {
             _logger = logger;
-            _machineStatusOptions = machineStatusOptions;
+            _machineInfoOptions = machineInfoOptions;
             _machineMetadataOptions = machineMetadataOptions;
-            _csvFolderPathOptions = csvFolderPathOptions;
-            _rabbitMQService = rabbitMQService;
+            _csvFilePathOptions = csvFilePathOptions;
             _rabbitMQPublisherOptions = rabbitMQPublisherOptions;
+            _rabbitMQService = rabbitMQService;
+
+            // 设置配置更改监听
+            SetupConfigurationChangeHandlers();
+        }
+
+        private void SetupConfigurationChangeHandlers()
+        {
+            // 监听机器信息配置更改
+            _optionsChangeTokens.Add(
+                _machineInfoOptions.OnChange(OnMachineInfoChanged)
+            );
+
+            // 监听机器元数据配置更改
+            _optionsChangeTokens.Add(
+                _machineMetadataOptions.OnChange(OnMachineMetadataChanged)
+            );
+
+            // 监听CSV文件路径配置更改
+            _optionsChangeTokens.Add(
+                _csvFilePathOptions.OnChange(OnCsvFilePathChanged)
+            );
+
+            // 监听RabbitMQ发布者配置更改
+            _optionsChangeTokens.Add(
+                _rabbitMQPublisherOptions.OnChange(OnRabbitMQPublisherChanged)
+            );
+        }
+
+        private void OnMachineInfoChanged(MachineInfoSetting newValue)
+        {
+            _logger.LogInformation("机器信息配置已更新: UniqueId={UniqueId}, Version={Version}, HeartbeatFrequency={HeartbeatFrequency}",
+                newValue.UniqueId, newValue.Version, newValue.HeartbeatFrequency);
+        }
+
+        private void OnMachineMetadataChanged(MachineMetadataSetting newValue)
+        {
+            _logger.LogInformation("机器元数据配置已更新: MachineName={MachineName}, StationName={StationName}",
+                newValue.MachineName, newValue.StationName);
+        }
+
+        private void OnCsvFilePathChanged(CsvFilePathSetting newValue)
+        {
+            _logger.LogInformation("CSV文件路径配置已更新: ProductionPath={ProductionPath}, ProcessDataPath={ProcessDataPath}",
+                newValue.ProductionInformationFilePath, newValue.ProcessDataFilesFilePath);
+        }
+
+        private void OnRabbitMQPublisherChanged(RabbitMQPublisherSettings newValue)
+        {
+            _logger.LogInformation("RabbitMQ发布者配置已更新: Prefix={Prefix}", newValue.Prefix);
         }
 
         /// <summary>
@@ -51,18 +103,20 @@ namespace CSV2CFX.Services
         /// <returns></returns>
         public async Task CreateRabbitmqAsync(string uniqueId)
         {
+            var rabbitMQPublisherSettings = _rabbitMQPublisherOptions.CurrentValue;
+
             var keyValues = new Dictionary<string, string>
             {
-                ["heartbeat"] = $"{_rabbitMQPublisherOptions.Value.Prefix}.heartbeat",
-                ["workstarted"] = $"{_rabbitMQPublisherOptions.Value.Prefix}.workstarted",
-                ["workcompleted"] = $"{_rabbitMQPublisherOptions.Value.Prefix}.workcompleted",
-                ["unitsprocessed"] = $"{_rabbitMQPublisherOptions.Value.Prefix}.unitsprocessed",
-                ["stationstatechanged"] = $"{_rabbitMQPublisherOptions.Value.Prefix}.stationstatechanged",
-                ["faultoccurred"] = $"{_rabbitMQPublisherOptions.Value.Prefix}.faultoccurred",
-                ["faultcleared"] = $"{_rabbitMQPublisherOptions.Value.Prefix}.faultcleared",
+                ["heartbeat"] = $"{rabbitMQPublisherSettings.Prefix}.heartbeat",
+                ["workstarted"] = $"{rabbitMQPublisherSettings.Prefix}.workstarted",
+                ["workcompleted"] = $"{rabbitMQPublisherSettings.Prefix}.workcompleted",
+                ["unitsprocessed"] = $"{rabbitMQPublisherSettings.Prefix}.unitsprocessed",
+                ["stationstatechanged"] = $"{rabbitMQPublisherSettings.Prefix}.stationstatechanged",
+                ["faultoccurred"] = $"{rabbitMQPublisherSettings.Prefix}.faultoccurred",
+                ["faultcleared"] = $"{rabbitMQPublisherSettings.Prefix}.faultcleared",
             };
 
-            var exchangeName = $"{_rabbitMQPublisherOptions.Value.Prefix}.{EXCHANGE_SUFFIX}";
+            var exchangeName = $"{rabbitMQPublisherSettings.Prefix}.{EXCHANGE_SUFFIX}";
             await _rabbitMQService.CreateExchangeAsync(exchangeName);
 
             foreach (var item in keyValues)
@@ -86,49 +140,54 @@ namespace CSV2CFX.Services
         /// <returns></returns>
         public async Task PublishHeartbeatAsync(string uniqueId)
         {
+            var machineInfo = _machineInfoOptions.CurrentValue;
+            var machineMetadata = _machineMetadataOptions.CurrentValue;
+            var rabbitMQPublisher = _rabbitMQPublisherOptions.CurrentValue;
+
             var body = new Dictionary<string, dynamic?>
             {
-                ["$type"] = $"{_machineStatusOptions.Value.Heartbeat}, CFX",
+                ["$type"] = $"{machineInfo.Heartbeat}, CFX",
                 ["CFXHandle"] = Guid.NewGuid().ToString(),
-                ["HeartbeatFrequency"] = _machineStatusOptions.Value.HeartbeatFrequency,
+                ["HeartbeatFrequency"] = machineInfo.HeartbeatFrequency,
                 ["ActiveFaults"] = 0,
                 ["ActiveRecipes"] = Array.Empty<object>(),
                 ["Metadata"] = new Dictionary<string, string>
                 {
-                    ["building"] = _machineMetadataOptions.Value.Building ?? "",
-                    ["device"] = _machineMetadataOptions.Value.Device ?? "",
-                    ["area_name"] = _machineMetadataOptions.Value.AreaName ?? "",
-                    ["org"] = _machineMetadataOptions.Value.Organization ?? "",
-                    ["line_name"] = _machineMetadataOptions.Value.LineName ?? "",
-                    ["site_name"] = _machineMetadataOptions.Value.SiteName ?? "",
-                    ["station_name"] = _machineMetadataOptions.Value.StationName ?? "",
-                    ["Process_type"] = _machineMetadataOptions.Value.ProcessType ?? "",
-                    ["machine_name"] = _machineMetadataOptions.Value.MachineName ?? "",
-                    ["Created_by"] = _machineMetadataOptions.Value.CreatedBy ?? "",
+                    ["building"] = machineMetadata.Building ?? "",
+                    ["device"] = machineMetadata.Device ?? "",
+                    ["area_name"] = machineMetadata.AreaName ?? "",
+                    ["org"] = machineMetadata.Organization ?? "",
+                    ["line_name"] = machineMetadata.LineName ?? "",
+                    ["site_name"] = machineMetadata.SiteName ?? "",
+                    ["station_name"] = machineMetadata.StationName ?? "",
+                    ["Process_type"] = machineMetadata.ProcessType ?? "",
+                    ["machine_name"] = machineMetadata.MachineName ?? "",
+                    ["Created_by"] = machineMetadata.CreatedBy ?? "",
                 }
             };
 
             var json = new CFXJsonModel
             {
-                MessageName = _machineStatusOptions.Value.Heartbeat,
-                Version = _machineStatusOptions.Value.Version,
+                MessageName = machineInfo.Heartbeat,
+                Version = machineInfo.Version,
                 TimeStamp = DateTime.UtcNow.FormatDateTimeToIso8601(0),
-                UniqueID = _machineStatusOptions.Value.UniqueId,
-                Source = _machineStatusOptions.Value.UniqueId,
+                UniqueID = machineInfo.UniqueId,
+                Source = machineInfo.UniqueId,
                 Target = null,
                 RequestID = Guid.NewGuid().ToString(),
                 MessageBody = body
             };
 
-            var exchangeName = $"{_rabbitMQPublisherOptions.Value.Prefix}.{EXCHANGE_SUFFIX}";
-            var routingKey = $"{_rabbitMQPublisherOptions.Value.Prefix}.heartbeat.{ROUTINGKEY_SUFFIX}";
-            var queueName = $"{_rabbitMQPublisherOptions.Value.Prefix}.heartbeat.{QUEUE_SUFFIX}";
-            var message = JsonSerializer.Serialize(json, options);
-            
+            var exchangeName = $"{rabbitMQPublisher.Prefix}.{EXCHANGE_SUFFIX}";
+            var routingKey = $"{rabbitMQPublisher.Prefix}.heartbeat.{ROUTINGKEY_SUFFIX}";
+            var queueName = $"{rabbitMQPublisher.Prefix}.heartbeat.{QUEUE_SUFFIX}";
+            var message = JsonSerializer.Serialize(json, _jsonSerializerOptions);
+
             await _rabbitMQService.PublishMessageAsync(exchangeName, routingKey, message);
 
-            // 兼容字符串类型的心跳消息
-            await Task.Delay(Convert.ToInt32(_machineStatusOptions.Value.HeartbeatFrequency) * 1000).ConfigureAwait(false);
+            // 使用当前配置的心跳频率进行延迟
+            var heartbeatFrequency = machineInfo.HeartbeatFrequency;
+            await Task.Delay(heartbeatFrequency * 1000).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -144,11 +203,13 @@ namespace CSV2CFX.Services
         /// <returns></returns>
         public async Task PublishWorkProcessAsync(string uniqueId)
         {
-            var filePath = _csvFolderPathOptions.Value.ProductionInformationFilePath ?? "";
+            var csvFilePaths = _csvFilePathOptions.CurrentValue;
+            var filePath = csvFilePaths.ProductionInformationFilePath ?? "";
             var copyFilePath = $"{filePath}.backup.csv";
-            
+
             if (!File.Exists(filePath) && !File.Exists(copyFilePath))
             {
+                _logger.LogDebug("生产信息文件不存在: {FilePath}", filePath);
                 return;
             }
 
@@ -156,6 +217,7 @@ namespace CSV2CFX.Services
             {
                 File.Copy(filePath, copyFilePath, true);
                 File.Delete(filePath);
+                _logger.LogDebug("已创建备份文件: {CopyFilePath}", copyFilePath);
             }
 
             filePath = copyFilePath;
@@ -164,9 +226,14 @@ namespace CSV2CFX.Services
 
             try
             {
+                _logger.LogInformation("开始处理生产信息文件，共 {LineCount} 行数据", lines.Length - 1);
+
                 foreach (var line in lines.Skip(1))
                 {
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
                     var columns = line.Split(',');
+                    if (columns.Length < 7) continue;
 
                     ProductionInfo production = new ProductionInfo
                     {
@@ -188,15 +255,21 @@ namespace CSV2CFX.Services
                     // workcompleted
                     await PublishWorkCompletedAsync(uniqueId, production).ConfigureAwait(false);
                 }
+
+                _logger.LogInformation("生产信息文件处理完成");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error publishing WorkStarted messages.");
+                _logger.LogError(ex, "发布WorkStarted消息时发生错误");
                 return;
             }
             finally
             {
-                File.Delete(filePath);
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                    _logger.LogDebug("已删除备份文件: {FilePath}", filePath);
+                }
                 await Task.Delay(5000).ConfigureAwait(false);
             }
         }
@@ -204,46 +277,38 @@ namespace CSV2CFX.Services
         // workstarted
         private async Task PublishWorkStartedAsync(string uniqueId, ProductionInfo production)
         {
+            var machineInfo = _machineInfoOptions.CurrentValue;
+            var machineMetadata = _machineMetadataOptions.CurrentValue;
+            var rabbitMQPublisher = _rabbitMQPublisherOptions.CurrentValue;
+
             var body = new Dictionary<string, dynamic?>
             {
-                ["$type"] = $"{_machineStatusOptions.Value.WorkStarted}, CFX",
+                ["$type"] = $"{machineInfo.WorkStarted}, CFX",
                 ["PrimaryIdentifier"] = production.SN,
                 ["HermesIdentifier"] = null,
                 ["TransactionID"] = Guid.NewGuid().ToString(),
                 ["Line"] = 1,
                 ["UnitCount"] = null,
                 ["Units"] = Array.Empty<object>(),
-                ["Metadata"] = new Dictionary<string, string>
-                {
-                    ["building"] = _machineMetadataOptions.Value.Building ?? "",
-                    ["device"] = _machineMetadataOptions.Value.Device ?? "",
-                    ["area_name"] = _machineMetadataOptions.Value.AreaName ?? "",
-                    ["org"] = _machineMetadataOptions.Value.Organization ?? "",
-                    ["line_name"] = _machineMetadataOptions.Value.LineName ?? "",
-                    ["site_name"] = _machineMetadataOptions.Value.SiteName ?? "",
-                    ["station_name"] = _machineMetadataOptions.Value.StationName ?? "",
-                    ["Process_type"] = _machineMetadataOptions.Value.ProcessType ?? "",
-                    ["machine_name"] = _machineMetadataOptions.Value.MachineName ?? "",
-                    ["Created_by"] = _machineMetadataOptions.Value.CreatedBy ?? "",
-                }
+                ["Metadata"] = CreateMetadataDictionary(machineMetadata)
             };
 
             var json = new CFXJsonModel
             {
-                MessageName = _machineStatusOptions.Value.WorkStarted,
-                Version = _machineStatusOptions.Value.Version,
+                MessageName = machineInfo.WorkStarted,
+                Version = machineInfo.Version,
                 TimeStamp = Convert.ToDateTime(production.StartTime).FormatDateTimeToIso8601(8),
-                UniqueID = _machineStatusOptions.Value.UniqueId,
-                Source = _machineStatusOptions.Value.UniqueId,
+                UniqueID = machineInfo.UniqueId,
+                Source = machineInfo.UniqueId,
                 Target = null,
                 RequestID = Guid.NewGuid().ToString(),
                 MessageBody = body
             };
 
-            var exchangeName = $"{_rabbitMQPublisherOptions.Value.Prefix}.{EXCHANGE_SUFFIX}";
-            var routingKey = $"{_rabbitMQPublisherOptions.Value.Prefix}.workstarted.{ROUTINGKEY_SUFFIX}";
-            var queueName = $"{_rabbitMQPublisherOptions.Value.Prefix}.workstarted.{QUEUE_SUFFIX}";
-            var message = JsonSerializer.Serialize(json, options);
+            var exchangeName = $"{rabbitMQPublisher.Prefix}.{EXCHANGE_SUFFIX}";
+            var routingKey = $"{rabbitMQPublisher.Prefix}.workstarted.{ROUTINGKEY_SUFFIX}";
+            var queueName = $"{rabbitMQPublisher.Prefix}.workstarted.{QUEUE_SUFFIX}";
+            var message = JsonSerializer.Serialize(json, _jsonSerializerOptions);
 
             // workstarted
             await _rabbitMQService.PublishMessageAsync(exchangeName, routingKey, message);
@@ -252,14 +317,26 @@ namespace CSV2CFX.Services
         // unitsprocessed
         private async Task PublishUnitsProcessedAsync(string uniqueId, ProductionInfo production)
         {
-            var directoryPath = _csvFolderPathOptions.Value.ProcessDataFilesFilePath ?? "";
+            var machineInfo = _machineInfoOptions.CurrentValue;
+            var machineMetadata = _machineMetadataOptions.CurrentValue;
+            var rabbitMQPublisher = _rabbitMQPublisherOptions.CurrentValue;
+            var csvFilePaths = _csvFilePathOptions.CurrentValue;
+
+            var directoryPath = csvFilePaths.ProcessDataFilesFilePath ?? "";
+            if (!Directory.Exists(directoryPath))
+            {
+                _logger.LogWarning("过程数据文件夹不存在: {DirectoryPath}", directoryPath);
+                return;
+            }
+
             var files = Directory.GetFiles(directoryPath, "*.csv");
-            var filePath = files.Where(s => Path.GetFileNameWithoutExtension(s).StartsWith(production.SN ?? "")).FirstOrDefault();
+            var filePath = files.Where(s => Path.GetFileNameWithoutExtension(s).StartsWith(production.SN ?? "")).FirstOrDefault() ?? "";
 
             var copyFilePath = $"{filePath}.backup.csv";
 
             if (!File.Exists(filePath) && !File.Exists(copyFilePath))
             {
+                _logger.LogDebug("未找到序列号 {SN} 对应的过程数据文件", production.SN);
                 return;
             }
 
@@ -282,6 +359,7 @@ namespace CSV2CFX.Services
                 foreach (var item in list)
                 {
                     var columns = item.Split(',');
+                    if (columns.Length < 4) continue;
 
                     personalizedUnits.Add(new PersonalizedUnit
                     {
@@ -313,54 +391,47 @@ namespace CSV2CFX.Services
                     ["$type"] = $"CFX.Structures.SolderReflow.ReflowProcessData, CFX",
                     ["TransactionID"] = Guid.NewGuid().ToString(),
                     ["OverallResult"] = production.Result,
+                    ["RecipeName"] = "RecipeName1",
                     ["CommonProcessData"] = new Dictionary<string, dynamic>
                     {
                         ["$type"] = "CFX.Structures.ProccessData, CFX",
                         ["PersonalizedUnits"] = personalizedUnits
                     },
-                    ["Metadata"] = new Dictionary<string, string>
-                    {
-                        ["building"] = _machineMetadataOptions.Value.Building ?? "",
-                        ["device"] = _machineMetadataOptions.Value.Device ?? "",
-                        ["area_name"] = _machineMetadataOptions.Value.AreaName ?? "",
-                        ["org"] = _machineMetadataOptions.Value.Organization ?? "",
-                        ["line_name"] = _machineMetadataOptions.Value.LineName ?? "",
-                        ["site_name"] = _machineMetadataOptions.Value.SiteName ?? "",
-                        ["station_name"] = _machineMetadataOptions.Value.StationName ?? "",
-                        ["Process_type"] = _machineMetadataOptions.Value.ProcessType ?? "",
-                        ["machine_name"] = _machineMetadataOptions.Value.MachineName ?? "",
-                        ["Created_by"] = _machineMetadataOptions.Value.CreatedBy ?? "",
-                    },
+                    ["Metadata"] = CreateMetadataDictionary(machineMetadata),
                     ["UnitProcessData"] = Array.Empty<object>()
                 };
+
                 var json = new Dictionary<string, dynamic?>
                 {
-                    ["MessageName"] = _machineStatusOptions.Value.UnitsProcessed ?? "",
-                    ["Version"] = _machineStatusOptions.Value.Version ?? "",
+                    ["MessageName"] = machineInfo.UnitsProcessed ?? "",
+                    ["Version"] = machineInfo.Version ?? "",
                     ["TimeStamp"] = Convert.ToDateTime(production.EndTime).FormatDateTimeToIso8601(8),
-                    ["UniqueID"] = _machineStatusOptions.Value.UniqueId ?? "",
-                    ["Source"] = _machineStatusOptions.Value.UniqueId ?? "",
+                    ["UniqueID"] = machineInfo.UniqueId ?? "",
+                    ["Source"] = machineInfo.UniqueId ?? "",
                     ["Target"] = null,
                     ["RequestID"] = null,
-                    ["RecipeName"] = null,
                     ["MessageBody"] = body
                 };
-                var exchangeName = $"{_rabbitMQPublisherOptions.Value.Prefix}.{EXCHANGE_SUFFIX}";
-                var routingKey = $"{_rabbitMQPublisherOptions.Value.Prefix}.unitsprocessed.{ROUTINGKEY_SUFFIX}";
-                var queueName = $"{_rabbitMQPublisherOptions.Value.Prefix}.unitsprocessed.{QUEUE_SUFFIX}";
-                var message = JsonSerializer.Serialize(json, options);
+
+                var exchangeName = $"{rabbitMQPublisher.Prefix}.{EXCHANGE_SUFFIX}";
+                var routingKey = $"{rabbitMQPublisher.Prefix}.unitsprocessed.{ROUTINGKEY_SUFFIX}";
+                var queueName = $"{rabbitMQPublisher.Prefix}.unitsprocessed.{QUEUE_SUFFIX}";
+                var message = JsonSerializer.Serialize(json, _jsonSerializerOptions);
 
                 // unitsprocessed
                 await _rabbitMQService.PublishMessageAsync(exchangeName, routingKey, message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error publishing UnitsProcessed messages.");
+                _logger.LogError(ex, "发布UnitsProcessed消息时发生错误，SN: {SN}", production.SN);
                 return;
             }
             finally
             {
-                File.Delete(filePath);
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
                 await Task.Delay(5000).ConfigureAwait(false);
             }
         }
@@ -368,9 +439,13 @@ namespace CSV2CFX.Services
         // workcompleted
         private async Task PublishWorkCompletedAsync(string uniqueId, ProductionInfo production)
         {
+            var machineInfo = _machineInfoOptions.CurrentValue;
+            var machineMetadata = _machineMetadataOptions.CurrentValue;
+            var rabbitMQPublisher = _rabbitMQPublisherOptions.CurrentValue;
+
             var body = new Dictionary<string, dynamic?>
             {
-                ["$type"] = $"{_machineStatusOptions.Value.WorkCompleted}, CFX",
+                ["$type"] = $"{machineInfo.WorkCompleted}, CFX",
                 ["PrimaryIdentifier"] = production.SN,
                 ["HermesIdentifier"] = null,
                 ["TransactionID"] = Guid.NewGuid().ToString(),
@@ -378,35 +453,25 @@ namespace CSV2CFX.Services
                 ["UnitCount"] = null,
                 ["Units"] = Array.Empty<object>(),
                 ["PerformanceImpacts"] = Array.Empty<object>(),
-                ["Metadata"] = new Dictionary<string, string>
-                {
-                    ["building"] = _machineMetadataOptions.Value.Building ?? "",
-                    ["device"] = _machineMetadataOptions.Value.Device ?? "",
-                    ["area_name"] = _machineMetadataOptions.Value.AreaName ?? "",
-                    ["org"] = _machineMetadataOptions.Value.Organization ?? "",
-                    ["line_name"] = _machineMetadataOptions.Value.LineName ?? "",
-                    ["site_name"] = _machineMetadataOptions.Value.SiteName ?? "",
-                    ["station_name"] = _machineMetadataOptions.Value.StationName ?? "",
-                    ["Process_type"] = _machineMetadataOptions.Value.ProcessType ?? "",
-                    ["machine_name"] = _machineMetadataOptions.Value.MachineName ??  "",
-                    ["Created_by"] = _machineMetadataOptions.Value.CreatedBy ?? "",
-                }
+                ["Metadata"] = CreateMetadataDictionary(machineMetadata)
             };
+
             var json = new CFXJsonModel
             {
-                MessageName = _machineStatusOptions.Value.WorkCompleted,
-                Version = _machineStatusOptions.Value.Version,
+                MessageName = machineInfo.WorkCompleted,
+                Version = machineInfo.Version,
                 TimeStamp = Convert.ToDateTime(production.EndTime).FormatDateTimeToIso8601(8),
-                UniqueID = _machineStatusOptions.Value.UniqueId,
-                Source = _machineStatusOptions.Value.UniqueId,
+                UniqueID = machineInfo.UniqueId,
+                Source = machineInfo.UniqueId,
                 Target = null,
                 RequestID = null,
                 MessageBody = body
             };
-            var exchangeName = $"{_rabbitMQPublisherOptions.Value.Prefix}.{EXCHANGE_SUFFIX}";
-            var routingKey = $"{_rabbitMQPublisherOptions.Value.Prefix}.workcompleted.{ROUTINGKEY_SUFFIX}";
-            var queueName = $"{_rabbitMQPublisherOptions.Value.Prefix}.workcompleted.{QUEUE_SUFFIX}";
-            var message = JsonSerializer.Serialize(json, options);
+
+            var exchangeName = $"{rabbitMQPublisher.Prefix}.{EXCHANGE_SUFFIX}";
+            var routingKey = $"{rabbitMQPublisher.Prefix}.workcompleted.{ROUTINGKEY_SUFFIX}";
+            var queueName = $"{rabbitMQPublisher.Prefix}.workcompleted.{QUEUE_SUFFIX}";
+            var message = JsonSerializer.Serialize(json, _jsonSerializerOptions);
 
             // workcompleted
             await _rabbitMQService.PublishMessageAsync(exchangeName, routingKey, message);
@@ -418,12 +483,17 @@ namespace CSV2CFX.Services
         /// <returns></returns>
         public async Task PublishMachineStateAsync(string uniqueId)
         {
-            var filePath = _csvFolderPathOptions.Value.MachineStatusInformationFilePath ?? "";
+            var csvFilePaths = _csvFilePathOptions.CurrentValue;
+            var machineInfo = _machineInfoOptions.CurrentValue;
+            var machineMetadata = _machineMetadataOptions.CurrentValue;
+            var rabbitMQPublisher = _rabbitMQPublisherOptions.CurrentValue;
 
+            var filePath = csvFilePaths.MachineStatusInformationFilePath ?? "";
             var copyFilePath = $"{filePath}.backup.csv";
 
             if (!File.Exists(filePath) && !File.Exists(copyFilePath))
             {
+                _logger.LogDebug("机器状态信息文件不存在: {FilePath}", filePath);
                 return;
             }
 
@@ -442,7 +512,10 @@ namespace CSV2CFX.Services
             {
                 foreach (var line in lines.Skip(1))
                 {
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
                     var columns = line.Split(',');
+                    if (columns.Length < 4) continue;
 
                     list.Add(new MachineStatusInfo
                     {
@@ -453,15 +526,27 @@ namespace CSV2CFX.Services
                     });
                 }
 
+                if (list.Count == 0)
+                {
+                    _logger.LogWarning("机器状态文件中没有有效数据");
+                    return;
+                }
+
                 // faultoccurred
                 var lastErrorIndex = list.FindLastIndex(s => s.Status == (int)MAPBasicStatusCode.Error);
+                if (lastErrorIndex == -1)
+                {
+                    _logger.LogDebug("未找到错误状态记录");
+                    return;
+                }
+
                 var lastError = list[lastErrorIndex];
-                
                 var guid = Guid.NewGuid().ToString();
+
                 var faultOccurredJson = new Dictionary<string, dynamic?>
                 {
-                    ["MessageName"] = _machineStatusOptions.Value.FaultOccurred,
-                    ["Version"] = _machineStatusOptions.Value.Version,
+                    ["MessageName"] = machineInfo.FaultOccurred,
+                    ["Version"] = machineInfo.Version,
                     ["TimeStamp"] = Convert.ToDateTime(lastError.OPTime).FormatDateTimeToIso8601(8),
                     ["UniqueID"] = uniqueId,
                     ["Source"] = uniqueId,
@@ -469,7 +554,7 @@ namespace CSV2CFX.Services
                     ["RequestID"] = null,
                     ["MessageBody"] = new Dictionary<string, dynamic?>
                     {
-                        ["$type"] = $"{_machineStatusOptions.Value.FaultOccurred}, CFX",
+                        ["$type"] = $"{machineInfo.FaultOccurred}, CFX",
                         ["Fault"] = new Dictionary<string, dynamic?>
                         {
                             ["TransactionID"] = guid,
@@ -494,40 +579,29 @@ namespace CSV2CFX.Services
                             ["OccurredAt"] = Convert.ToDateTime(lastError.OPTime).FormatDateTimeToIso8601(8),
                             ["DueDateTime"] = null
                         },
-                        ["Metadata"] = new Dictionary<string, string>
-                        {
-                            ["building"] = _machineMetadataOptions.Value.Building ?? "",
-                            ["device"] = _machineMetadataOptions.Value.Device ?? "",
-                            ["area_name"] = _machineMetadataOptions.Value.AreaName ?? "",
-                            ["org"] = _machineMetadataOptions.Value.Organization ?? "",
-                            ["line_name"] = _machineMetadataOptions.Value.LineName ?? "",
-                            ["site_name"] = _machineMetadataOptions.Value.SiteName ?? "",
-                            ["station_name"] = _machineMetadataOptions.Value.StationName ?? "",
-                            ["Process_type"] = _machineMetadataOptions.Value.ProcessType ?? "",
-                            ["machine_name"] = _machineMetadataOptions.Value.MachineName ?? "",
-                            ["Created_by"] = _machineMetadataOptions.Value.CreatedBy ?? "",
-                        }
+                        ["Metadata"] = CreateMetadataDictionary(machineMetadata)
                     }
                 };
 
-                var faultoccurred_exchangeName = $"{_rabbitMQPublisherOptions.Value.Prefix}.{EXCHANGE_SUFFIX}";
-                var faultoccurred_routingKey = $"{_rabbitMQPublisherOptions.Value.Prefix}.faultoccurred.{ROUTINGKEY_SUFFIX}";
-                var faultoccurred_queueName = $"{_rabbitMQPublisherOptions.Value.Prefix}.faultoccurred.{QUEUE_SUFFIX}";
-                var faultoccurred_message = JsonSerializer.Serialize(faultOccurredJson, options);
+                var faultoccurred_exchangeName = $"{rabbitMQPublisher.Prefix}.{EXCHANGE_SUFFIX}";
+                var faultoccurred_routingKey = $"{rabbitMQPublisher.Prefix}.faultoccurred.{ROUTINGKEY_SUFFIX}";
+                var faultoccurred_queueName = $"{rabbitMQPublisher.Prefix}.faultoccurred.{QUEUE_SUFFIX}";
+                var faultoccurred_message = JsonSerializer.Serialize(faultOccurredJson, _jsonSerializerOptions);
 
                 await _rabbitMQService.PublishMessageAsync(faultoccurred_exchangeName, faultoccurred_routingKey, faultoccurred_message);
 
                 // faultcleared
-                if (list.Count-1 == lastErrorIndex)
+                if (list.Count - 1 == lastErrorIndex)
                 {
+                    _logger.LogDebug("没有后续的故障清除记录");
                     return;
                 }
 
                 var lastClearErrorOPTime = list[lastErrorIndex + 1].OPTime;
                 var faultClearedJson = new Dictionary<string, dynamic?>
                 {
-                    ["MessageName"] = _machineStatusOptions.Value.FaultCleared,
-                    ["Version"] = _machineStatusOptions.Value.Version,
+                    ["MessageName"] = machineInfo.FaultCleared,
+                    ["Version"] = machineInfo.Version,
                     ["TimeStamp"] = Convert.ToDateTime(lastClearErrorOPTime).FormatDateTimeToIso8601(8),
                     ["UniqueID"] = uniqueId,
                     ["Source"] = uniqueId,
@@ -545,90 +619,94 @@ namespace CSV2CFX.Services
                             ["FirstName"] = "",
                             ["LogingName"] = ""
                         },
-                        ["Metadata"] = new Dictionary<string, string>
-                        {
-                            ["building"] = _machineMetadataOptions.Value.Building ?? "",
-                            ["device"] = _machineMetadataOptions.Value.Device ?? "",
-                            ["area_name"] = _machineMetadataOptions.Value.AreaName ?? "",
-                            ["org"] = _machineMetadataOptions.Value.Organization ?? "",
-                            ["line_name"] = _machineMetadataOptions.Value.LineName ?? "",
-                            ["site_name"] = _machineMetadataOptions.Value.SiteName ?? "",
-                            ["station_name"] = _machineMetadataOptions.Value.StationName ?? "",
-                            ["Process_type"] = _machineMetadataOptions.Value.ProcessType ?? "",
-                            ["machine_name"] = _machineMetadataOptions.Value.MachineName ?? "",
-                            ["Created_by"] = _machineMetadataOptions.Value.CreatedBy ?? "",
-                        }
+                        ["Metadata"] = CreateMetadataDictionary(machineMetadata)
                     }
                 };
 
-                var faultcleared_exchangeName = $"{_rabbitMQPublisherOptions.Value.Prefix}.{EXCHANGE_SUFFIX}";
-                var faultcleared_routingKey = $"{_rabbitMQPublisherOptions.Value.Prefix}.faultcleared.{ROUTINGKEY_SUFFIX}";
-                var faultcleared_queueName = $"{_rabbitMQPublisherOptions.Value.Prefix}.faultcleared.{QUEUE_SUFFIX}";
-                var faultcleared_message = JsonSerializer.Serialize(faultClearedJson, options);
+                var faultcleared_exchangeName = $"{rabbitMQPublisher.Prefix}.{EXCHANGE_SUFFIX}";
+                var faultcleared_routingKey = $"{rabbitMQPublisher.Prefix}.faultcleared.{ROUTINGKEY_SUFFIX}";
+                var faultcleared_queueName = $"{rabbitMQPublisher.Prefix}.faultcleared.{QUEUE_SUFFIX}";
+                var faultcleared_message = JsonSerializer.Serialize(faultClearedJson, _jsonSerializerOptions);
 
                 await _rabbitMQService.PublishMessageAsync(faultcleared_exchangeName, faultcleared_routingKey, faultcleared_message);
 
                 // StationStateChanged
-                var oldState = list[list.Count - 2].Status.HasValue ? StatusEventType.GetCfxCode((MAPBasicStatusCode)list[list.Count - 2].Status.Value) : -1; ;
-                var newState = list.Last().Status.HasValue ? StatusEventType.GetCfxCode((MAPBasicStatusCode)list.Last().Status.Value) : -1;
-                var oldStateDuration = "";
-                var lastOPTime = list.Last().OPTime;
-                var secondToLastOPTime = list[list.Count - 2].OPTime;
-
-                if (!string.IsNullOrWhiteSpace(lastOPTime) && !string.IsNullOrWhiteSpace(secondToLastOPTime))
+                if (list.Count >= 2)
                 {
-                    oldStateDuration = DateTimeExtensions.CalculateTimeDifference(secondToLastOPTime, lastOPTime);
+                    var oldState = list[list.Count - 2].Status.HasValue ? StatusEventType.GetCfxCode((MAPBasicStatusCode)list[list.Count - 2].Status.Value) : -1;
+                    var newState = list.Last().Status.HasValue ? StatusEventType.GetCfxCode((MAPBasicStatusCode)list.Last().Status.Value) : -1;
+                    var oldStateDuration = "";
+                    var lastOPTime = list.Last().OPTime;
+                    var secondToLastOPTime = list[list.Count - 2].OPTime;
+
+                    if (!string.IsNullOrWhiteSpace(lastOPTime) && !string.IsNullOrWhiteSpace(secondToLastOPTime))
+                    {
+                        oldStateDuration = DateTimeExtensions.CalculateTimeDifference(secondToLastOPTime, lastOPTime);
+                    }
+
+                    var stationstatechanged_json = new Dictionary<string, dynamic?>
+                    {
+                        ["MessageName"] = machineInfo.StationStateChanged,
+                        ["Version"] = machineInfo.Version,
+                        ["TimeStamp"] = Convert.ToDateTime(lastOPTime).FormatDateTimeToIso8601(8),
+                        ["UniqueID"] = uniqueId,
+                        ["Source"] = uniqueId,
+                        ["Target"] = "ARCH",
+                        ["RequestID"] = null,
+                        ["MessageBody"] = new Dictionary<string, dynamic?>
+                        {
+                            ["$type"] = "CFX.ResourcePerformance.StationStateChanged, CFX",
+                            ["OldState"] = oldState,
+                            ["OldStateDuration"] = oldStateDuration,
+                            ["NewState"] = newState,
+                            ["RelatedFault"] = null,
+                            ["Metadata"] = CreateMetadataDictionary(machineMetadata)
+                        }
+                    };
+
+                    var stationstatechanged_exchangeName = $"{rabbitMQPublisher.Prefix}.{EXCHANGE_SUFFIX}";
+                    var stationstatechanged_routingKey = $"{rabbitMQPublisher.Prefix}.stationstatechanged.{ROUTINGKEY_SUFFIX}";
+                    var stationstatechanged_queueName = $"{rabbitMQPublisher.Prefix}.stationstatechanged.{QUEUE_SUFFIX}";
+                    var stationstatechanged_message = JsonSerializer.Serialize(stationstatechanged_json, _jsonSerializerOptions);
+
+                    await _rabbitMQService.PublishMessageAsync(stationstatechanged_exchangeName, stationstatechanged_routingKey, stationstatechanged_message);
                 }
 
-                var stationstatechanged_json = new Dictionary<string, dynamic?>
-                {
-                    ["MessageName"] = _machineStatusOptions.Value.StationStateChanged,
-                    ["Version"] = _machineStatusOptions.Value.Version,
-                    ["TimeStamp"] = Convert.ToDateTime(lastOPTime).FormatDateTimeToIso8601(8),
-                    ["UniqueID"] = uniqueId,
-                    ["Source"] = uniqueId,
-                    ["Target"] = "ARCH",
-                    ["RequestID"] = null,
-                    ["MessageBody"] = new Dictionary<string, dynamic?>
-                    {
-                        ["$type"] = "CFX.ResourcePerformance.StationStateChanged, CFX",
-                        ["OldState"] = oldState,
-                        ["OldStateDuration"] = oldStateDuration,
-                        ["NewState"] = newState,
-                        ["RelatedFault"] = null,
-                        ["Metadata"] = new Dictionary<string, string>
-                        {
-                            ["building"] = _machineMetadataOptions.Value.Building ?? "",
-                            ["device"] = _machineMetadataOptions.Value.Device ?? "",
-                            ["area_name"] = _machineMetadataOptions.Value.AreaName ?? "",
-                            ["org"] = _machineMetadataOptions.Value.Organization ?? "",
-                            ["line_name"] = _machineMetadataOptions.Value.LineName ?? "",
-                            ["site_name"] = _machineMetadataOptions.Value.SiteName ?? "",
-                            ["station_name"] = _machineMetadataOptions.Value.StationName ?? "",
-                            ["Process_type"] = _machineMetadataOptions.Value.ProcessType ?? "",
-                            ["machine_name"] = _machineMetadataOptions.Value.MachineName ?? "",
-                            ["Created_by"] = _machineMetadataOptions.Value.CreatedBy ?? "",
-                        }
-                    }
-                };
-
-                var stationstatechanged_exchangeName = $"{_rabbitMQPublisherOptions.Value.Prefix}.{EXCHANGE_SUFFIX}";
-                var stationstatechanged_routingKey = $"{_rabbitMQPublisherOptions.Value.Prefix}.stationstatechanged.{ROUTINGKEY_SUFFIX}";
-                var stationstatechanged_queueName = $"{_rabbitMQPublisherOptions.Value.Prefix}.stationstatechanged.{QUEUE_SUFFIX}";
-                var stationstatechanged_message = JsonSerializer.Serialize(stationstatechanged_json, options);
-
-                await _rabbitMQService.PublishMessageAsync(stationstatechanged_exchangeName, stationstatechanged_routingKey, stationstatechanged_message);
+                _logger.LogInformation("机器状态信息处理完成");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error publishing MachineState messages.");
+                _logger.LogError(ex, "发布MachineState消息时发生错误");
                 return;
             }
             finally
             {
-                File.Delete(filePath);
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
                 await Task.Delay(5000).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// 创建元数据字典的辅助方法
+        /// </summary>
+        private Dictionary<string, string> CreateMetadataDictionary(MachineMetadataSetting machineMetadata)
+        {
+            return new Dictionary<string, string>
+            {
+                ["building"] = machineMetadata.Building ?? "",
+                ["device"] = machineMetadata.Device ?? "",
+                ["area_name"] = machineMetadata.AreaName ?? "",
+                ["org"] = machineMetadata.Organization ?? "",
+                ["line_name"] = machineMetadata.LineName ?? "",
+                ["site_name"] = machineMetadata.SiteName ?? "",
+                ["station_name"] = machineMetadata.StationName ?? "",
+                ["Process_type"] = machineMetadata.ProcessType ?? "",
+                ["machine_name"] = machineMetadata.MachineName ?? "",
+                ["Created_by"] = machineMetadata.CreatedBy ?? "",
+            };
         }
 
         private bool IsValidDateTime(string dateTimeString)
@@ -636,18 +714,30 @@ namespace CSV2CFX.Services
             // 尝试解析日期时间字符串
             // 支持多种格式，包括 "yyyy/M/d H:mm", "yyyy/M/d H:m", "yyyy/M/d H:mm:ss" 等
             string[] formats = {
-            "yyyy/M/d H:mm",
-            "yyyy/M/d H:m",
-            "yyyy/M/d H:mm:ss",
-            "yyyy/M/d H:m:s",
-            "yyyy/MM/dd HH:mm",
-            "yyyy/MM/dd HH:mm:ss",
-            "yyyy/M/dd H:mm",
-            "yyyy/M/dd H:mm:ss"
-        };
+                "yyyy/M/d H:mm",
+                "yyyy/M/d H:m",
+                "yyyy/M/d H:mm:ss",
+                "yyyy/M/d H:m:s",
+                "yyyy/MM/dd HH:mm",
+                "yyyy/MM/dd HH:mm:ss",
+                "yyyy/M/dd H:mm",
+                "yyyy/M/dd H:mm:ss"
+            };
 
             DateTime result;
             return DateTime.TryParseExact(dateTimeString, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out result);
+        }
+
+        public void Dispose()
+        {
+            // 释放配置监听
+            foreach (var token in _optionsChangeTokens)
+            {
+                token?.Dispose();
+            }
+            _optionsChangeTokens.Clear();
+
+            _logger.LogDebug("MachineService 资源已释放");
         }
     }
 }
