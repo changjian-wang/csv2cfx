@@ -19,7 +19,7 @@ namespace CSV2CFX.Services
         private readonly IOptionsMonitor<MachineMetadataSetting> _machineMetadataOptions;
         private readonly IOptionsMonitor<CsvFilePathSetting> _csvFilePathOptions;
         private readonly IOptionsMonitor<RabbitMQPublisherSettings> _rabbitMQPublisherOptions;
-        private readonly IRabbitMQService _rabbitMQService;
+        private readonly IMessagingServiceFactory _messagingServiceFactory;
         private readonly List<IDisposable> _optionsChangeTokens = new();
 
         private const string QUEUE_SUFFIX = "queue";
@@ -38,14 +38,14 @@ namespace CSV2CFX.Services
             IOptionsMonitor<MachineMetadataSetting> machineMetadataOptions,
             IOptionsMonitor<CsvFilePathSetting> csvFilePathOptions,
             IOptionsMonitor<RabbitMQPublisherSettings> rabbitMQPublisherOptions,
-            IRabbitMQService rabbitMQService)
+            IMessagingServiceFactory messagingServiceFactory)
         {
             _logger = logger;
             _machineInfoOptions = machineInfoOptions;
             _machineMetadataOptions = machineMetadataOptions;
             _csvFilePathOptions = csvFilePathOptions;
             _rabbitMQPublisherOptions = rabbitMQPublisherOptions;
-            _rabbitMQService = rabbitMQService;
+            _messagingServiceFactory = messagingServiceFactory;
 
             // 设置配置更改监听
             SetupConfigurationChangeHandlers();
@@ -95,7 +95,7 @@ namespace CSV2CFX.Services
         }
 
         /// <summary>
-        /// Create RabbitMQ queues, exchanges, and bindings for CFX messages.
+        /// Create messaging infrastructure (queues, exchanges, and bindings) for CFX messages.
         /// </summary>
         /// <returns></returns>
         public async Task CreateRabbitmqAsync(string uniqueId)
@@ -114,15 +114,17 @@ namespace CSV2CFX.Services
             };
 
             var exchangeName = $"{rabbitMQPublisherSettings.Prefix}.{EXCHANGE_SUFFIX}";
-            await _rabbitMQService.CreateExchangeAsync(exchangeName);
+            
+            using var messagingService = _messagingServiceFactory.CreateMessagingService();
+            await messagingService.CreateExchangeAsync(exchangeName);
 
             foreach (var item in keyValues)
             {
                 var queueName = $"{item.Value}.{QUEUE_SUFFIX}".ToLower();
                 var routingKey = $"{item.Value}.{ROUTINGKEY_SUFFIX}".ToLower();
 
-                await _rabbitMQService.CreateQueueAsync(queueName);
-                await _rabbitMQService.BindQueueAsync(queueName, exchangeName, routingKey);
+                await messagingService.CreateTopicAsync(queueName);
+                await messagingService.BindQueueAsync(queueName, exchangeName, routingKey);
             }
         }
 
@@ -180,7 +182,8 @@ namespace CSV2CFX.Services
             var queueName = $"{rabbitMQPublisher.Prefix}.heartbeat.{QUEUE_SUFFIX}";
             var message = JsonSerializer.Serialize(json, _jsonSerializerOptions);
 
-            await _rabbitMQService.PublishMessageAsync(exchangeName, routingKey, message);
+            using var messagingService = _messagingServiceFactory.CreateMessagingService();
+            await messagingService.PublishMessageAsync(exchangeName, routingKey, message);
 
             // 使用当前配置的心跳频率进行延迟
             var heartbeatFrequency = machineInfo.HeartbeatFrequency;
@@ -310,7 +313,8 @@ namespace CSV2CFX.Services
             var message = JsonSerializer.Serialize(json, _jsonSerializerOptions);
 
             // workstarted
-            await _rabbitMQService.PublishMessageAsync(exchangeName, routingKey, message);
+            using var messagingService = _messagingServiceFactory.CreateMessagingService();
+            await messagingService.PublishMessageAsync(exchangeName, routingKey, message);
         }
 
         // unitsprocessed
@@ -418,7 +422,8 @@ namespace CSV2CFX.Services
                 var message = JsonSerializer.Serialize(json, _jsonSerializerOptions);
 
                 // unitsprocessed
-                await _rabbitMQService.PublishMessageAsync(exchangeName, routingKey, message);
+                using var messagingService = _messagingServiceFactory.CreateMessagingService();
+            await messagingService.PublishMessageAsync(exchangeName, routingKey, message);
             }
             catch (Exception ex)
             {
@@ -473,7 +478,8 @@ namespace CSV2CFX.Services
             var message = JsonSerializer.Serialize(json, _jsonSerializerOptions);
 
             // workcompleted
-            await _rabbitMQService.PublishMessageAsync(exchangeName, routingKey, message);
+            using var messagingService = _messagingServiceFactory.CreateMessagingService();
+            await messagingService.PublishMessageAsync(exchangeName, routingKey, message);
         }
 
         /// <summary>
@@ -587,7 +593,8 @@ namespace CSV2CFX.Services
                 var faultoccurred_queueName = $"{rabbitMQPublisher.Prefix}.faultoccurred.{QUEUE_SUFFIX}";
                 var faultoccurred_message = JsonSerializer.Serialize(faultOccurredJson, _jsonSerializerOptions);
 
-                await _rabbitMQService.PublishMessageAsync(faultoccurred_exchangeName, faultoccurred_routingKey, faultoccurred_message);
+                using var messagingService = _messagingServiceFactory.CreateMessagingService();
+            await messagingService.PublishMessageAsync(faultoccurred_exchangeName, faultoccurred_routingKey, faultoccurred_message);
 
                 // faultcleared
                 if (list.Count - 1 == lastErrorIndex)
@@ -627,7 +634,8 @@ namespace CSV2CFX.Services
                 var faultcleared_queueName = $"{rabbitMQPublisher.Prefix}.faultcleared.{QUEUE_SUFFIX}";
                 var faultcleared_message = JsonSerializer.Serialize(faultClearedJson, _jsonSerializerOptions);
 
-                await _rabbitMQService.PublishMessageAsync(faultcleared_exchangeName, faultcleared_routingKey, faultcleared_message);
+                using var messagingService = _messagingServiceFactory.CreateMessagingService();
+            await messagingService.PublishMessageAsync(faultcleared_exchangeName, faultcleared_routingKey, faultcleared_message);
 
                 // StationStateChanged
                 if (list.Count >= 2)
@@ -668,7 +676,8 @@ namespace CSV2CFX.Services
                     var stationstatechanged_queueName = $"{rabbitMQPublisher.Prefix}.stationstatechanged.{QUEUE_SUFFIX}";
                     var stationstatechanged_message = JsonSerializer.Serialize(stationstatechanged_json, _jsonSerializerOptions);
 
-                    await _rabbitMQService.PublishMessageAsync(stationstatechanged_exchangeName, stationstatechanged_routingKey, stationstatechanged_message);
+                    using var messagingService = _messagingServiceFactory.CreateMessagingService();
+            await messagingService.PublishMessageAsync(stationstatechanged_exchangeName, stationstatechanged_routingKey, stationstatechanged_message);
                 }
 
                 _logger.LogInformation("机器状态信息处理完成");

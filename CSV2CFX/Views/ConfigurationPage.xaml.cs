@@ -246,22 +246,43 @@ namespace CSV2CFX.Views
             try
             {
                 await Task.Delay(500);
-                if (string.IsNullOrEmpty(ViewModel.HostName))
+                
+                // Test the selected protocol
+                if (ViewModel.ProtocolType == CSV2CFX.AppSettings.ProtocolType.AMQP)
                 {
-                    results.Add(new TestResult("RabbitMQ", false, "主机名不能为空"));
+                    if (string.IsNullOrEmpty(ViewModel.HostName))
+                    {
+                        results.Add(new TestResult("RabbitMQ", false, "主机名不能为空"));
+                    }
+                    else if (ViewModel.Port <= 0 || ViewModel.Port > 65535)
+                    {
+                        results.Add(new TestResult("RabbitMQ", false, "端口号无效"));
+                    }
+                    else
+                    {
+                        results.Add(new TestResult("RabbitMQ", true, ""));
+                    }
                 }
-                else if (ViewModel.Port <= 0 || ViewModel.Port > 65535)
+                else // MQTT
                 {
-                    results.Add(new TestResult("RabbitMQ", false, "端口号无效"));
-                }
-                else
-                {
-                    results.Add(new TestResult("RabbitMQ", true, ""));
+                    if (string.IsNullOrEmpty(ViewModel.MqttBrokerHost))
+                    {
+                        results.Add(new TestResult("MQTT", false, "代理主机不能为空"));
+                    }
+                    else if (ViewModel.MqttBrokerPort <= 0 || ViewModel.MqttBrokerPort > 65535)
+                    {
+                        results.Add(new TestResult("MQTT", false, "代理端口号无效"));
+                    }
+                    else
+                    {
+                        results.Add(new TestResult("MQTT", true, ""));
+                    }
                 }
             }
             catch (Exception ex)
             {
-                results.Add(new TestResult("RabbitMQ", false, ex.Message));
+                var protocolName = ViewModel.ProtocolType == CSV2CFX.AppSettings.ProtocolType.AMQP ? "RabbitMQ" : "MQTT";
+                results.Add(new TestResult(protocolName, false, ex.Message));
             }
 
             try
@@ -331,6 +352,10 @@ namespace CSV2CFX.Views
                         Lifetime = ViewModel.MicrosoftHostingLifetimeLogLevel ?? "Information"
                     }
                 },
+                Protocol = new
+                {
+                    Type = (int)ViewModel.ProtocolType
+                },
                 RabbitMQ = new
                 {
                     HostName = ViewModel.HostName ?? "",
@@ -344,6 +369,19 @@ namespace CSV2CFX.Views
                 RabbitMQPublisherSettings = new
                 {
                     Prefix = ViewModel.Prefix ?? ""
+                },
+                MQTT = new
+                {
+                    BrokerHost = ViewModel.MqttBrokerHost ?? "",
+                    BrokerPort = ViewModel.MqttBrokerPort,
+                    Username = ViewModel.MqttUsername ?? "",
+                    Password = ViewModel.MqttPassword ?? "",
+                    ClientId = ViewModel.MqttClientId ?? "",
+                    UseTls = ViewModel.MqttUseTls,
+                    KeepAlivePeriod = ViewModel.MqttKeepAlivePeriod,
+                    CleanSession = ViewModel.MqttCleanSession,
+                    ConnectionTimeout = ViewModel.MqttConnectionTimeout,
+                    TopicPrefix = ViewModel.MqttTopicPrefix ?? ""
                 },
                 Api = new
                 {
@@ -411,6 +449,16 @@ namespace CSV2CFX.Views
                     }
                 }
 
+                // Load protocol settings
+                if (root.TryGetProperty("Protocol", out var protocol))
+                {
+                    if (protocol.TryGetProperty("Type", out var protocolType))
+                    {
+                        if (Enum.TryParse<CSV2CFX.AppSettings.ProtocolType>(protocolType.GetInt32().ToString(), out var pt))
+                            ViewModel.ProtocolType = pt;
+                    }
+                }
+
                 if (root.TryGetProperty("RabbitMQ", out var rabbitMQ))
                 {
                     if (rabbitMQ.TryGetProperty("HostName", out var hostName))
@@ -433,6 +481,31 @@ namespace CSV2CFX.Views
                 {
                     if (publisherSettings.TryGetProperty("Prefix", out var prefix))
                         ViewModel.Prefix = prefix.GetString() ?? "";
+                }
+
+                // Load MQTT settings
+                if (root.TryGetProperty("MQTT", out var mqtt))
+                {
+                    if (mqtt.TryGetProperty("BrokerHost", out var brokerHost))
+                        ViewModel.MqttBrokerHost = brokerHost.GetString() ?? "";
+                    if (mqtt.TryGetProperty("BrokerPort", out var brokerPort))
+                        ViewModel.MqttBrokerPort = brokerPort.GetInt32();
+                    if (mqtt.TryGetProperty("Username", out var mqttUsername))
+                        ViewModel.MqttUsername = mqttUsername.GetString() ?? "";
+                    if (mqtt.TryGetProperty("Password", out var mqttPassword))
+                        ViewModel.MqttPassword = mqttPassword.GetString() ?? "";
+                    if (mqtt.TryGetProperty("ClientId", out var clientId))
+                        ViewModel.MqttClientId = clientId.GetString() ?? "";
+                    if (mqtt.TryGetProperty("UseTls", out var useTls))
+                        ViewModel.MqttUseTls = useTls.GetBoolean();
+                    if (mqtt.TryGetProperty("KeepAlivePeriod", out var keepAlive))
+                        ViewModel.MqttKeepAlivePeriod = keepAlive.GetInt32();
+                    if (mqtt.TryGetProperty("CleanSession", out var cleanSession))
+                        ViewModel.MqttCleanSession = cleanSession.GetBoolean();
+                    if (mqtt.TryGetProperty("ConnectionTimeout", out var connectionTimeout))
+                        ViewModel.MqttConnectionTimeout = connectionTimeout.GetInt32();
+                    if (mqtt.TryGetProperty("TopicPrefix", out var topicPrefix))
+                        ViewModel.MqttTopicPrefix = topicPrefix.GetString() ?? "";
                 }
 
                 if (root.TryGetProperty("Api", out var api))

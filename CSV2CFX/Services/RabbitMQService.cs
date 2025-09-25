@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace CSV2CFX.Services
 {
-    public class RabbitMQService : IRabbitMQService, IDisposable
+    public class RabbitMQService : IRabbitMQService, IMessagingService, IDisposable
     {
         private readonly IRabbitMQConnectionFactory _connectionFactory;
         private bool _disposed = false;
@@ -26,6 +26,16 @@ namespace CSV2CFX.Services
         {
             _connectionFactory = connectionFactory;
             _logger = logger;
+        }
+
+        /// <summary>
+        /// Creates a topic/queue for message routing (IMessagingService implementation)
+        /// </summary>
+        /// <param name="name">The name of the topic/queue to create</param>
+        /// <returns>A task that represents the asynchronous operation</returns>
+        public async Task CreateTopicAsync(string name)
+        {
+            await CreateQueueAsync(name);
         }
 
         /// <summary>

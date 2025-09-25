@@ -40,6 +40,19 @@
                         </StackPanel>
                     </ui:CardExpander>
 
+                    <!-- Protocol Selection -->
+                    <ui:CardExpander Header="🔗 Protocol Selection" IsExpanded="True" Margin="0,0,0,15">
+                        <StackPanel Margin="15">
+                            <Label Content="Message Protocol:" Target="{Binding ElementName=ProtocolTypeComboBox}"/>
+                            <ComboBox Name="ProtocolTypeComboBox" 
+                                      SelectedIndex="{Binding ProtocolType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      Margin="0,0,0,10">
+                                <ComboBoxItem Content="AMQP (RabbitMQ)" />
+                                <ComboBoxItem Content="MQTT" />
+                            </ComboBox>
+                        </StackPanel>
+                    </ui:CardExpander>
+
                     <!-- RabbitMQ Settings -->
                     <ui:CardExpander Header="🐰 RabbitMQ Settings" IsExpanded="True" Margin="0,0,0,15">
                         <StackPanel Margin="15">
@@ -90,6 +103,79 @@
                                 Value="{Binding NetworkRecoveryIntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 PlaceholderText="Network Recovery Interval (Seconds)"
                                 Minimum="1"/>
+                        </StackPanel>
+                    </ui:CardExpander>
+
+                    <!-- MQTT Settings -->
+                    <ui:CardExpander Header="📡 MQTT Settings" IsExpanded="False" Margin="0,0,0,15">
+                        <StackPanel Margin="15">
+                            <Label Content="Broker Host:" Target="{Binding ElementName=MqttBrokerHostTextBox}"/>
+                            <ui:TextBox 
+                                Name="MqttBrokerHostTextBox"
+                                Text="{Binding MqttBrokerHost, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                PlaceholderText="MQTT Broker Host"
+                                Margin="0,0,0,10"/>
+
+                            <Label Content="Broker Port:" Target="{Binding ElementName=MqttBrokerPortNumberBox}"/>
+                            <ui:NumberBox 
+                                Name="MqttBrokerPortNumberBox"
+                                Value="{Binding MqttBrokerPort, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                PlaceholderText="MQTT Broker Port"
+                                Minimum="1" Maximum="65535"
+                                Margin="0,0,0,10"/>
+
+                            <Label Content="Username:" Target="{Binding ElementName=MqttUsernameTextBox}"/>
+                            <ui:TextBox 
+                                Name="MqttUsernameTextBox"
+                                Text="{Binding MqttUsername, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                PlaceholderText="MQTT Username (optional)"
+                                Margin="0,0,0,10"/>
+
+                            <Label Content="Password:" Target="{Binding ElementName=MqttPasswordBox}"/>
+                            <ui:PasswordBox 
+                                Name="MqttPasswordBox"
+                                Password="{Binding MqttPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                PlaceholderText="MQTT Password (optional)"
+                                Margin="0,0,0,10"/>
+
+                            <Label Content="Client ID:" Target="{Binding ElementName=MqttClientIdTextBox}"/>
+                            <ui:TextBox 
+                                Name="MqttClientIdTextBox"
+                                Text="{Binding MqttClientId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                PlaceholderText="MQTT Client ID (auto-generated if empty)"
+                                Margin="0,0,0,10"/>
+
+                            <Label Content="Topic Prefix:" Target="{Binding ElementName=MqttTopicPrefixTextBox}"/>
+                            <ui:TextBox 
+                                Name="MqttTopicPrefixTextBox"
+                                Text="{Binding MqttTopicPrefix, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                PlaceholderText="MQTT Topic Prefix"
+                                Margin="0,0,0,10"/>
+
+                            <ui:ToggleSwitch 
+                                Content="Use TLS/SSL"
+                                IsChecked="{Binding MqttUseTls, Mode=TwoWay}"
+                                Margin="0,0,0,10"/>
+
+                            <ui:ToggleSwitch 
+                                Content="Clean Session"
+                                IsChecked="{Binding MqttCleanSession, Mode=TwoWay}"
+                                Margin="0,0,0,10"/>
+
+                            <Label Content="Keep Alive Period (Seconds):" Target="{Binding ElementName=MqttKeepAliveNumberBox}"/>
+                            <ui:NumberBox 
+                                Name="MqttKeepAliveNumberBox"
+                                Value="{Binding MqttKeepAlivePeriod, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                PlaceholderText="Keep Alive Period"
+                                Minimum="10" Maximum="3600"
+                                Margin="0,0,0,10"/>
+
+                            <Label Content="Connection Timeout (Seconds):" Target="{Binding ElementName=MqttConnectionTimeoutNumberBox}"/>
+                            <ui:NumberBox 
+                                Name="MqttConnectionTimeoutNumberBox"
+                                Value="{Binding MqttConnectionTimeout, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                PlaceholderText="Connection Timeout"
+                                Minimum="5" Maximum="300"/>
                         </StackPanel>
                     </ui:CardExpander>
 

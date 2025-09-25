@@ -61,7 +61,9 @@ namespace CSV2CFX
                     services.AddSingleton<IDynamicConfigurationService, DynamicConfigurationService>();
 
                     // 绑定配置到 IOptions<T> - 这些会自动创建 IOptionsMonitor<T>
+                    services.Configure<ProtocolSetting>(context.Configuration.GetSection("Protocol"));
                     services.Configure<RabbitmqSetting>(context.Configuration.GetSection("RabbitMQ"));
+                    services.Configure<MqttSetting>(context.Configuration.GetSection("MQTT"));
                     services.Configure<BackgroundTaskSetting>(context.Configuration.GetSection("BackgroundTask"));
                     services.Configure<MachineInfoSetting>(context.Configuration.GetSection("MachineInfo"));
                     services.Configure<MachineMetadataSetting>(context.Configuration.GetSection("MachineMetadata"));
@@ -125,6 +127,12 @@ namespace CSV2CFX
 
                     // 注册 RabbitMQ 服务
                     services.AddSingleton<IRabbitMQService, RabbitMQService>();
+                    
+                    // 注册 MQTT 服务
+                    services.AddTransient<MqttService>();
+                    
+                    // 注册消息服务工厂
+                    services.AddSingleton<IMessagingServiceFactory, MessagingServiceFactory>();
 
                     // 注册其他服务
                     services.AddSingleton<IMachineService, MachineService>();

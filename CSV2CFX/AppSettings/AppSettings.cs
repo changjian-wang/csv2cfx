@@ -10,9 +10,13 @@ namespace CSV2CFX.AppSettings
     {
         public LoggingSetting Logging { get; set; } = new LoggingSetting();
      
+        public ProtocolSetting Protocol { get; set; } = new ProtocolSetting();
+        
         public RabbitmqSetting RabbitMQ { get; set; } = new RabbitmqSetting();
         
         public RabbitMQPublisherSettings RabbitMQPublisherSettings { get; set; } = new RabbitMQPublisherSettings();
+        
+        public MqttSetting MQTT { get; set; } = new MqttSetting();
         
         public ApiSetting Api { get; set; } = new ApiSetting();
         
