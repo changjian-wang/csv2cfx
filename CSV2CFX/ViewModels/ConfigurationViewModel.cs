@@ -43,6 +43,19 @@ namespace CSV2CFX.ViewModels
         private int _heartbeatFrequency;
         private string _endpoint;
         private string _loginUri;
+        
+        // Protocol and MQTT properties
+        private ProtocolType _protocolType;
+        private string _mqttBrokerHost;
+        private int _mqttBrokerPort;
+        private string _mqttUsername;
+        private string _mqttPassword;
+        private string _mqttClientId;
+        private bool _mqttUseTls;
+        private int _mqttKeepAlivePeriod;
+        private bool _mqttCleanSession;
+        private int _mqttConnectionTimeout;
+        private string _mqttTopicPrefix;
 
         // 所有属性都实现完整的 getter/setter 和 PropertyChanged
         public string DefaultLogLevel
@@ -241,6 +254,73 @@ namespace CSV2CFX.ViewModels
             set { _loginUri = value; OnPropertyChanged(); }
         }
 
+        // Protocol and MQTT properties
+        public ProtocolType ProtocolType
+        {
+            get => _protocolType;
+            set { _protocolType = value; OnPropertyChanged(); }
+        }
+
+        public string MqttBrokerHost
+        {
+            get => _mqttBrokerHost;
+            set { _mqttBrokerHost = value; OnPropertyChanged(); }
+        }
+
+        public int MqttBrokerPort
+        {
+            get => _mqttBrokerPort;
+            set { _mqttBrokerPort = value; OnPropertyChanged(); }
+        }
+
+        public string MqttUsername
+        {
+            get => _mqttUsername;
+            set { _mqttUsername = value; OnPropertyChanged(); }
+        }
+
+        public string MqttPassword
+        {
+            get => _mqttPassword;
+            set { _mqttPassword = value; OnPropertyChanged(); }
+        }
+
+        public string MqttClientId
+        {
+            get => _mqttClientId;
+            set { _mqttClientId = value; OnPropertyChanged(); }
+        }
+
+        public bool MqttUseTls
+        {
+            get => _mqttUseTls;
+            set { _mqttUseTls = value; OnPropertyChanged(); }
+        }
+
+        public int MqttKeepAlivePeriod
+        {
+            get => _mqttKeepAlivePeriod;
+            set { _mqttKeepAlivePeriod = value; OnPropertyChanged(); }
+        }
+
+        public bool MqttCleanSession
+        {
+            get => _mqttCleanSession;
+            set { _mqttCleanSession = value; OnPropertyChanged(); }
+        }
+
+        public int MqttConnectionTimeout
+        {
+            get => _mqttConnectionTimeout;
+            set { _mqttConnectionTimeout = value; OnPropertyChanged(); }
+        }
+
+        public string MqttTopicPrefix
+        {
+            get => _mqttTopicPrefix;
+            set { _mqttTopicPrefix = value; OnPropertyChanged(); }
+        }
+
         public ConfigurationViewModel(
             IOptionsMonitor<MachineInfoSetting> machineInfoOptions,
             IOptionsMonitor<ApiSetting> apiOptions,
@@ -280,6 +360,19 @@ namespace CSV2CFX.ViewModels
             _heartbeatFrequency = int.TryParse(configuration["MachineInfo:HeartbeatFrequency"], out var hf) ? hf : 0;
             _endpoint = configuration["Api:Endpoint"];
             _loginUri = configuration["Api:LoginUri"];
+
+            // Load protocol and MQTT settings
+            _protocolType = Enum.TryParse<ProtocolType>(configuration["Protocol:Type"], out var pt) ? pt : ProtocolType.AMQP;
+            _mqttBrokerHost = configuration["MQTT:BrokerHost"] ?? "localhost";
+            _mqttBrokerPort = int.TryParse(configuration["MQTT:BrokerPort"], out var mbp) ? mbp : 1883;
+            _mqttUsername = configuration["MQTT:Username"] ?? "";
+            _mqttPassword = configuration["MQTT:Password"] ?? "";
+            _mqttClientId = configuration["MQTT:ClientId"] ?? "";
+            _mqttUseTls = bool.TryParse(configuration["MQTT:UseTls"], out var mutls) ? mutls : false;
+            _mqttKeepAlivePeriod = int.TryParse(configuration["MQTT:KeepAlivePeriod"], out var mkap) ? mkap : 60;
+            _mqttCleanSession = bool.TryParse(configuration["MQTT:CleanSession"], out var mcs) ? mcs : true;
+            _mqttConnectionTimeout = int.TryParse(configuration["MQTT:ConnectionTimeout"], out var mct) ? mct : 30;
+            _mqttTopicPrefix = configuration["MQTT:TopicPrefix"] ?? "cfx";
 
             // 监听配置变化
             if (_machineInfoOptions != null)
@@ -340,6 +433,19 @@ namespace CSV2CFX.ViewModels
             _heartbeatFrequency = 5;
             _endpoint = "";
             _loginUri = "";
+            
+            // Initialize protocol and MQTT settings
+            _protocolType = ProtocolType.AMQP;
+            _mqttBrokerHost = "localhost";
+            _mqttBrokerPort = 1883;
+            _mqttUsername = "";
+            _mqttPassword = "";
+            _mqttClientId = "";
+            _mqttUseTls = false;
+            _mqttKeepAlivePeriod = 60;
+            _mqttCleanSession = true;
+            _mqttConnectionTimeout = 30;
+            _mqttTopicPrefix = "cfx";
         }
 
         public void NotifyAllPropertiesChanged()
@@ -374,6 +480,17 @@ namespace CSV2CFX.ViewModels
             OnPropertyChanged(nameof(ProcessType));
             OnPropertyChanged(nameof(MachineName));
             OnPropertyChanged(nameof(CreatedBy));
+            OnPropertyChanged(nameof(ProtocolType));
+            OnPropertyChanged(nameof(MqttBrokerHost));
+            OnPropertyChanged(nameof(MqttBrokerPort));
+            OnPropertyChanged(nameof(MqttUsername));
+            OnPropertyChanged(nameof(MqttPassword));
+            OnPropertyChanged(nameof(MqttClientId));
+            OnPropertyChanged(nameof(MqttUseTls));
+            OnPropertyChanged(nameof(MqttKeepAlivePeriod));
+            OnPropertyChanged(nameof(MqttCleanSession));
+            OnPropertyChanged(nameof(MqttConnectionTimeout));
+            OnPropertyChanged(nameof(MqttTopicPrefix));
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
