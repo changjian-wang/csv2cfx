@@ -1,0 +1,120 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\github\\volProduct\\wpf\\CSV2CFX\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{4923951A-4AE2-45DD-9287-00A5DB373998}|CSV2CFX\\CSV2CFX.csproj|c:\\github\\volproduct\\wpf\\csv2cfx\\csv2cfx\\services\\machineservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4923951A-4AE2-45DD-9287-00A5DB373998}|CSV2CFX\\CSV2CFX.csproj|solutionrelative:csv2cfx\\services\\machineservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4923951A-4AE2-45DD-9287-00A5DB373998}|CSV2CFX\\CSV2CFX.csproj|c:\\github\\volproduct\\wpf\\csv2cfx\\csv2cfx\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{4923951A-4AE2-45DD-9287-00A5DB373998}|CSV2CFX\\CSV2CFX.csproj|solutionrelative:csv2cfx\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4923951A-4AE2-45DD-9287-00A5DB373998}|CSV2CFX\\CSV2CFX.csproj|c:\\github\\volproduct\\wpf\\csv2cfx\\csv2cfx\\views\\configurationpage.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4923951A-4AE2-45DD-9287-00A5DB373998}|CSV2CFX\\CSV2CFX.csproj|solutionrelative:csv2cfx\\views\\configurationpage.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4923951A-4AE2-45DD-9287-00A5DB373998}|CSV2CFX\\CSV2CFX.csproj|c:\\github\\volproduct\\wpf\\csv2cfx\\csv2cfx\\views\\configurationpage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{4923951A-4AE2-45DD-9287-00A5DB373998}|CSV2CFX\\CSV2CFX.csproj|solutionrelative:csv2cfx\\views\\configurationpage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4923951A-4AE2-45DD-9287-00A5DB373998}|CSV2CFX\\CSV2CFX.csproj|c:\\github\\volproduct\\wpf\\csv2cfx\\csv2cfx\\csv2cfx.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{4923951A-4AE2-45DD-9287-00A5DB373998}|CSV2CFX\\CSV2CFX.csproj|solutionrelative:csv2cfx\\csv2cfx.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4923951A-4AE2-45DD-9287-00A5DB373998}|CSV2CFX\\CSV2CFX.csproj|c:\\github\\volproduct\\wpf\\csv2cfx\\csv2cfx\\app.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4923951A-4AE2-45DD-9287-00A5DB373998}|CSV2CFX\\CSV2CFX.csproj|solutionrelative:csv2cfx\\app.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "MachineService.cs",
+              "DocumentMoniker": "C:\\github\\volProduct\\wpf\\CSV2CFX\\CSV2CFX\\Services\\MachineService.cs",
+              "RelativeDocumentMoniker": "CSV2CFX\\Services\\MachineService.cs",
+              "ToolTip": "C:\\github\\volProduct\\wpf\\CSV2CFX\\CSV2CFX\\Services\\MachineService.cs",
+              "RelativeToolTip": "CSV2CFX\\Services\\MachineService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAOYCAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-17T15:21:20.958Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "MainWindow.xaml",
+              "DocumentMoniker": "C:\\github\\volProduct\\wpf\\CSV2CFX\\CSV2CFX\\MainWindow.xaml",
+              "RelativeDocumentMoniker": "CSV2CFX\\MainWindow.xaml",
+              "ToolTip": "C:\\github\\volProduct\\wpf\\CSV2CFX\\CSV2CFX\\MainWindow.xaml",
+              "RelativeToolTip": "CSV2CFX\\MainWindow.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2025-09-17T15:17:33.681Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "ConfigurationPage.xaml",
+              "DocumentMoniker": "C:\\github\\volProduct\\wpf\\CSV2CFX\\CSV2CFX\\Views\\ConfigurationPage.xaml",
+              "RelativeDocumentMoniker": "CSV2CFX\\Views\\ConfigurationPage.xaml",
+              "ToolTip": "C:\\github\\volProduct\\wpf\\CSV2CFX\\CSV2CFX\\Views\\ConfigurationPage.xaml",
+              "RelativeToolTip": "CSV2CFX\\Views\\ConfigurationPage.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2025-09-17T15:12:48.27Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "ConfigurationPage.xaml.cs",
+              "DocumentMoniker": "C:\\github\\volProduct\\wpf\\CSV2CFX\\CSV2CFX\\Views\\ConfigurationPage.xaml.cs",
+              "RelativeDocumentMoniker": "CSV2CFX\\Views\\ConfigurationPage.xaml.cs",
+              "ToolTip": "C:\\github\\volProduct\\wpf\\CSV2CFX\\CSV2CFX\\Views\\ConfigurationPage.xaml.cs",
+              "RelativeToolTip": "CSV2CFX\\Views\\ConfigurationPage.xaml.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAKYCAAAcAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-17T15:12:17.252Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "App.xaml.cs",
+              "DocumentMoniker": "C:\\github\\volProduct\\wpf\\CSV2CFX\\CSV2CFX\\App.xaml.cs",
+              "RelativeDocumentMoniker": "CSV2CFX\\App.xaml.cs",
+              "ToolTip": "C:\\github\\volProduct\\wpf\\CSV2CFX\\CSV2CFX\\App.xaml.cs",
+              "RelativeToolTip": "CSV2CFX\\App.xaml.cs",
+              "ViewState": "AgIAAC8AAAAAAAAAAIAwwD4AAAAUAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-17T15:10:02.617Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "CSV2CFX",
+              "DocumentMoniker": "C:\\github\\volProduct\\wpf\\CSV2CFX\\CSV2CFX\\CSV2CFX.csproj",
+              "RelativeDocumentMoniker": "CSV2CFX\\CSV2CFX.csproj",
+              "ToolTip": "C:\\github\\volProduct\\wpf\\CSV2CFX\\CSV2CFX\\CSV2CFX.csproj",
+              "RelativeToolTip": "CSV2CFX\\CSV2CFX.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2025-09-17T15:09:45.001Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
